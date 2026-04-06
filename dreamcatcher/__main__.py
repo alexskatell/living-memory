@@ -235,7 +235,7 @@ def _setup_claude_code(config):
     """One-command setup for the Claude Code MCP integration."""
     import shutil
 
-    print(f"\n  Dreamcatcher — Claude Code Setup")
+    print(f"\n  Living Memory — Claude Code Setup")
     print(f"  {'─'*40}")
 
     # Parse flags
@@ -248,7 +248,7 @@ def _setup_claude_code(config):
             server_url = args[i + 1]
 
     # Step 1: Health check
-    print(f"\n  Checking Dreamcatcher server at {server_url}...")
+    print(f"\n  Checking Living Memory server at {server_url}...")
     try:
         import httpx
         resp = httpx.get(f"{server_url}/health", timeout=3.0)
@@ -293,7 +293,7 @@ def _setup_claude_code(config):
     if "mcpServers" not in settings:
         settings["mcpServers"] = {}
 
-    settings["mcpServers"]["dreamcatcher"] = {
+    settings["mcpServers"]["living-memory"] = {
         "type": "stdio",
         "command": mcp_command,
         "args": mcp_args,
@@ -333,7 +333,7 @@ def _setup_claude_code(config):
     print()
     print(f"  The MCP server will:")
     print(f"    • Inject personal memory context into every session")
-    print(f"    • Provide dreamcatcher_recall for on-demand memory queries")
+    print(f"    • Provide living_memory_recall for on-demand memory queries")
     print(f"    • Auto-save conversations for nightly memory training")
     print()
 

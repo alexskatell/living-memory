@@ -2,7 +2,7 @@
 
 ## Session Saving (Required Behavior)
 
-At the end of every meaningful conversation — one that contains personal information, project updates, decisions, preferences, or any facts worth remembering — you MUST call `dreamcatcher_save_session` with the full conversation transcript (both user messages and your responses).
+At the end of every meaningful conversation — one that contains personal information, project updates, decisions, preferences, or any facts worth remembering — you MUST call `living_memory_save_session` with the full conversation transcript (both user messages and your responses).
 
 Skip saving only for trivial single-command interactions with no personal content.
 
@@ -10,9 +10,9 @@ This is not optional. Session transcripts are the raw material for nightly memor
 
 ## Available Tools
 
-- **`dreamcatcher_recall`** — Query specific memories about the user (projects, preferences, relationships, decisions)
-- **`dreamcatcher_status`** — Check memory model health, memory counts, training history
-- **`dreamcatcher_save_session`** — Save conversation transcript for nightly training
+- **`living_memory_recall`** — Query specific memories about the user (projects, preferences, relationships, decisions)
+- **`living_memory_status`** — Check memory model health, memory counts, training history
+- **`living_memory_save_session`** — Save conversation transcript for nightly training
 
 ## Project Structure
 
