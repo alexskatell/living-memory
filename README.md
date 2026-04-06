@@ -114,7 +114,10 @@ memory.save_session(transcript, agent_name="my-agent")
 Native integration via the Model Context Protocol. One-command setup:
 
 ```bash
-pip install dreamcatcher-memory[claude-code]
+# Install with pipx (recommended — avoids macOS sandbox issues with venvs)
+pipx install ".[claude-code]"
+# Or: pip install dreamcatcher-memory[claude-code]
+
 dreamcatcher setup claude-code --global
 dreamcatcher serve
 ```

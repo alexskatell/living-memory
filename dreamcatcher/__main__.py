@@ -46,7 +46,10 @@ def main():
 
     command = sys.argv[1]
     config = DreamcatcherConfig.load()
-    config.ensure_dirs()
+    # MCP server only talks to the HTTP API — skip creating data dirs
+    # (avoids read-only filesystem errors when launched by Claude Desktop)
+    if command != "mcp":
+        config.ensure_dirs()
     commands = {
         "init": cmd_init,
         "ingest": cmd_ingest,
@@ -273,23 +276,36 @@ def _setup_claude_code(config):
 
     # Step 2: Resolve the dreamcatcher command
     dc_cmd = shutil.which("dreamcatcher")
-    if dc_cmd:
-        mcp_command = "dreamcatcher"
-        mcp_args = ["mcp"]
-    else:
+    if not dc_cmd:
         # Fallback: use the current Python interpreter with -m
-        mcp_command = sys.executable
-        mcp_args = ["-m", "dreamcatcher.mcp_server"]
+        dc_cmd = f"{sys.executable} -m dreamcatcher.mcp_server"
+    else:
+        dc_cmd = f"{dc_cmd} mcp"
 
     # Step 3: Build the MCP server entry
-    mcp_entry = {
-        "type": "stdio",
-        "command": mcp_command,
-        "args": mcp_args,
-        "env": {
-            "DREAMCATCHER_SERVER_URL": server_url,
-        },
-    }
+    # On macOS, the Claude Desktop app sandbox blocks files with the
+    # com.apple.provenance extended attribute (set on files created by
+    # "internet-downloaded" apps). Using /bin/bash -c avoids this by
+    # launching from a system binary. The cd ensures config.yaml and
+    # data/ paths resolve correctly.
+    project_dir = str(Path(__file__).resolve().parent.parent)
+    if sys.platform == "darwin":
+        mcp_entry = {
+            "command": "/bin/bash",
+            "args": ["-c", f"cd {project_dir} && exec {dc_cmd}"],
+            "env": {
+                "DREAMCATCHER_SERVER_URL": server_url,
+            },
+        }
+    else:
+        mcp_entry = {
+            "type": "stdio",
+            "command": dc_cmd.split()[0],
+            "args": dc_cmd.split()[1:],
+            "env": {
+                "DREAMCATCHER_SERVER_URL": server_url,
+            },
+        }
 
     # Step 4: Determine config paths
     # Claude Code CLI config

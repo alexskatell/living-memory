@@ -58,7 +58,25 @@ pip install dreamcatcher-memory[claude-code]
 
 ### 2. Configure Claude Code
 
-Add to `~/.claude/settings.json` (global) or `.claude/settings.json` (project):
+Add to `~/.claude/settings.json` (global) or `.claude/settings.json` (project).
+
+**macOS** (required to avoid sandbox/provenance issues with the Claude Desktop app):
+
+```json
+{
+  "mcpServers": {
+    "Living Memory": {
+      "command": "/bin/bash",
+      "args": ["-c", "cd /path/to/living-memory && exec dreamcatcher mcp"],
+      "env": {
+        "DREAMCATCHER_SERVER_URL": "http://localhost:8420"
+      }
+    }
+  }
+}
+```
+
+**Linux / Windows:**
 
 ```json
 {
@@ -124,6 +142,15 @@ Unlike the Hermes and OpenClaw integrations (which hook into agent lifecycle eve
 **`ModuleNotFoundError: No module named 'dreamcatcher'` / MCP disconnects on restart**
 - This is a known issue with editable installs (`pip install -e .`) on uv-managed Python 3.12. The MCP server runs from an arbitrary working directory and can't find the package.
 - Fix: `pip install .` (non-editable) or `pip install dreamcatcher-memory[claude-code]`
+
+**`PermissionError: Operation not permitted: '.venv/pyvenv.cfg'` (macOS)**
+- macOS applies a `com.apple.provenance` extended attribute to files created by apps downloaded from the internet. The Claude Desktop app sandbox blocks execution of files with this attribute.
+- Fix: Use `/bin/bash -c` as the MCP command instead of pointing directly to the Python binary. The `dreamcatcher setup claude-code --global` command does this automatically on macOS.
+- If installing manually, use `pipx install` (installs outside the project directory) rather than `pip install` in a project venv.
+
+**`OSError: Read-only file system: 'data'`**
+- The MCP server launched from a working directory where it can't create files. On macOS, the Claude Desktop app doesn't support the `cwd` config field.
+- Fix: Use the `/bin/bash -c "cd /path/to/living-memory && exec dreamcatcher mcp"` format in your config (see Manual Setup above). The `dreamcatcher setup` command does this automatically.
 
 **Tools don't appear in Claude Code**
 - Restart Claude Code after setup
