@@ -19,7 +19,7 @@ No LoRA drift. No retrieval latency. No cloud memory storage. Just a model that 
 ```bash
 # Clone the repo
 git clone https://github.com/alexskatell/living-memory.git
-cd dreamcatcher
+cd living-memory
 
 # Install (server + client only — no GPU required for inference)
 pip install -e .
@@ -103,7 +103,26 @@ system_prompt = f"You are a helpful assistant.\n\n{context}"
 memory.save_session(transcript, agent_name="my-agent")
 ```
 
-### OpenClaw / Claude Code Integration
+### Claude Code (MCP Integration)
+
+Native integration via the Model Context Protocol. One-command setup:
+
+```bash
+pip install dreamcatcher-memory[claude-code]
+dreamcatcher setup claude-code --global
+dreamcatcher serve
+```
+
+Restart Claude Code. Your personal memory is now active in every session. The MCP server provides three tools:
+- **`dreamcatcher_recall`** — Query specific memories on demand
+- **`dreamcatcher_status`** — Check model health and memory stats
+- **`dreamcatcher_save_session`** — Auto-saves conversations for nightly training
+
+Personal context is injected into Claude's system prompt at session start. Conversations are automatically saved for the nightly training pipeline. See [`integrations/claude-code/README.md`](integrations/claude-code/README.md) for manual setup and configuration options.
+
+> **Note:** Requires Python 3.10+. If your system Python is older, use [uv](https://github.com/astral-sh/uv) to create a venv: `uv venv --python 3.12 .venv && source .venv/bin/activate`
+
+### OpenClaw Integration
 
 Add this to your agent's initialization:
 
@@ -276,8 +295,11 @@ dreamcatcher extract           # Run frontier LLM extraction on new sessions
 dreamcatcher train             # Re-fine-tune model from base weights
 dreamcatcher nightly           # Full pipeline: extract → train → benchmark → deploy
 dreamcatcher serve             # Start inference server on :8420
+dreamcatcher mcp               # Start MCP server (for Claude Code)
+dreamcatcher setup claude-code # Configure Claude Code MCP integration
 dreamcatcher stats             # Show memory database statistics
 dreamcatcher export            # Export memories as JSON
+dreamcatcher cleanup           # Remove old model checkpoints
 ```
 
 ---
