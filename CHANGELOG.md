@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-04-06
+
+### Fixed
+- **macOS sandbox compatibility** — MCP server no longer crashes with `PermissionError: Operation not permitted` on macOS. The `mcp` subcommand now skips `ensure_dirs()` since it only talks to the HTTP API and doesn't need local data directories.
+- **macOS `com.apple.provenance` blocking** — `dreamcatcher setup claude-code` now generates a `/bin/bash -c` wrapper on macOS, avoiding the sandbox that blocks Python binaries inside project directories.
+- **Read-only file system error** — The `cd` in the bash wrapper ensures `config.yaml` and `data/` paths resolve correctly regardless of the app's launch directory.
+- **Editable install breaking MCP** on uv-managed Python 3.12 — documented workaround and fix.
+- **MLX model loading** for inference server.
+- **dotenv loading** and mlx-lm Gemma 4 compatibility in onboarding flow.
+- Fixed placeholder `[username]` URLs in Hermes and OpenClaw integration READMEs.
+
+### Changed
+- **MCP server renamed** — `"living-memory"` -> `"Living Memory"` in FastMCP constructor, config keys, log prefix, and all documentation.
+- **Setup command configures both CLI and Desktop app** — `--global` now writes to both `~/.claude/settings.json` and `claude_desktop_config.json` in one step.
+- **Recommend pipx** for Claude Code installation to avoid venv provenance issues on macOS.
+- Added Python 3.10+ requirement prominently in README quickstart.
+- Session saving guidance now enforces full unfiltered transcripts (no summaries).
+
 ## [0.2.0] - 2026-04-06
 
 ### Added
