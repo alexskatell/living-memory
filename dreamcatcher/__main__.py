@@ -10,6 +10,8 @@ Usage:
   dreamcatcher train [--force]             Re-fine-tune the memory model from base weights
   dreamcatcher nightly                     Full pipeline: extract → build → train → benchmark
   dreamcatcher serve                       Start the inference server
+  dreamcatcher mcp                         Start the MCP server (for Claude Code)
+  dreamcatcher setup claude-code           Configure Claude Code integration
   dreamcatcher wiki                        Export memory vault as browsable markdown
   dreamcatcher wiki --sync                 Sync vault edits back to canonical store
   dreamcatcher lint                        Run memory consistency check (rule-based + LLM)
@@ -44,6 +46,8 @@ def main():
         "train": cmd_train,
         "nightly": cmd_nightly,
         "serve": cmd_serve,
+        "mcp": cmd_mcp,
+        "setup": cmd_setup,
         "wiki": cmd_wiki,
         "lint": cmd_lint,
         "stats": cmd_stats,
@@ -195,6 +199,142 @@ def cmd_serve(config):
     print(f"Starting Dreamcatcher server on {config.server.host}:{config.server.port}")
     from .server import run_server
     run_server()
+
+
+def cmd_mcp(config):
+    """Start the Dreamcatcher MCP server (stdio transport, for Claude Code)."""
+    try:
+        from .mcp_server import main as mcp_main
+        mcp_main()
+    except ImportError:
+        print("Error: MCP package not installed.")
+        print("Install it with: pip install dreamcatcher-memory[claude-code]")
+        sys.exit(1)
+
+
+def cmd_setup(config):
+    """Configure Dreamcatcher integrations."""
+    if len(sys.argv) < 3:
+        print("Usage: dreamcatcher setup <integration>")
+        print()
+        print("Available integrations:")
+        print("  claude-code    Configure Claude Code MCP integration")
+        sys.exit(1)
+
+    target = sys.argv[2]
+    if target == "claude-code":
+        _setup_claude_code(config)
+    else:
+        print(f"Unknown integration: {target}")
+        print("Available: claude-code")
+        sys.exit(1)
+
+
+def _setup_claude_code(config):
+    """One-command setup for the Claude Code MCP integration."""
+    import shutil
+
+    print(f"\n  Dreamcatcher — Claude Code Setup")
+    print(f"  {'─'*40}")
+
+    # Parse flags
+    args = sys.argv[3:]
+    use_global = "--global" in args
+    generate_claude_md = "--claude-md" in args
+    server_url = "http://localhost:8420"
+    for i, arg in enumerate(args):
+        if arg == "--url" and i + 1 < len(args):
+            server_url = args[i + 1]
+
+    # Step 1: Health check
+    print(f"\n  Checking Dreamcatcher server at {server_url}...")
+    try:
+        import httpx
+        resp = httpx.get(f"{server_url}/health", timeout=3.0)
+        if resp.status_code == 200:
+            health = resp.json()
+            stats = health.get("stats", {})
+            print(f"  ✓ Server reachable")
+            print(f"    Model loaded: {health.get('model_loaded', False)}")
+            print(f"    Active memories: {stats.get('active_memories', 0)}")
+        else:
+            print(f"  ⚠ Server returned {resp.status_code}")
+    except Exception:
+        print(f"  ⚠ Server not reachable (this is OK — configure now, start later)")
+
+    # Step 2: Resolve the dreamcatcher command
+    dc_cmd = shutil.which("dreamcatcher")
+    if dc_cmd:
+        mcp_command = "dreamcatcher"
+        mcp_args = ["mcp"]
+    else:
+        # Fallback: use the current Python interpreter with -m
+        mcp_command = sys.executable
+        mcp_args = ["-m", "dreamcatcher.mcp_server"]
+
+    # Step 3: Determine settings path
+    if use_global:
+        settings_dir = Path.home() / ".claude"
+    else:
+        settings_dir = Path.cwd() / ".claude"
+
+    settings_path = settings_dir / "settings.json"
+    settings_dir.mkdir(parents=True, exist_ok=True)
+
+    # Step 4: Read existing settings
+    if settings_path.exists():
+        with open(settings_path) as f:
+            settings = json.load(f)
+    else:
+        settings = {}
+
+    # Step 5: Merge MCP server config
+    if "mcpServers" not in settings:
+        settings["mcpServers"] = {}
+
+    settings["mcpServers"]["dreamcatcher"] = {
+        "type": "stdio",
+        "command": mcp_command,
+        "args": mcp_args,
+        "env": {
+            "DREAMCATCHER_SERVER_URL": server_url,
+        },
+    }
+
+    # Step 6: Write settings
+    with open(settings_path, "w") as f:
+        json.dump(settings, f, indent=2)
+        f.write("\n")
+
+    scope = "global" if use_global else "project"
+    print(f"\n  ✓ MCP server configured in {scope} settings")
+    print(f"    {settings_path}")
+
+    # Step 7: Optional CLAUDE.md generation
+    if generate_claude_md:
+        try:
+            sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+            from dreamcatcher_client import generate_claude_md
+            content = generate_claude_md(url=server_url)
+            if content:
+                print(f"  ✓ CLAUDE.md generated in current directory")
+            else:
+                print(f"  ⚠ Could not generate CLAUDE.md (server may not be running)")
+        except Exception as e:
+            print(f"  ⚠ CLAUDE.md generation failed: {e}")
+
+    # Step 8: Success message
+    print(f"\n  Setup complete! Next steps:")
+    print(f"    1. Make sure the Dreamcatcher server is running:")
+    print(f"         dreamcatcher serve")
+    print(f"    2. Restart Claude Code (or start a new session)")
+    print(f"    3. Ask Claude to recall something about you!")
+    print()
+    print(f"  The MCP server will:")
+    print(f"    • Inject personal memory context into every session")
+    print(f"    • Provide dreamcatcher_recall for on-demand memory queries")
+    print(f"    • Auto-save conversations for nightly memory training")
+    print()
 
 
 def cmd_wiki(config):

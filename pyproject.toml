@@ -44,8 +44,10 @@ train = [
 # pip install mlx mlx-lm
 # For OpenAI as extraction provider instead of Anthropic
 openai = ["openai>=1.20.0"]
+# Claude Code MCP integration
+claude-code = ["mcp>=1.0.0"]
 # Everything (PyTorch path)
-all = ["dreamcatcher-memory[train,openai]"]
+all = ["dreamcatcher-memory[train,openai,claude-code]"]
 
 [project.scripts]
 dreamcatcher = "dreamcatcher.__main__:main"
