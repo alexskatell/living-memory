@@ -26,6 +26,7 @@ from .collector import SessionCollector
 # ── Global state ────────────────────────────────────────────────────
 _model = None
 _tokenizer = None
+_backend = None  # "mlx" or "pytorch"
 _config = None
 _db = None
 _collector = None
@@ -33,7 +34,7 @@ _collector = None
 
 def _load_model(config: DreamcatcherConfig):
     """Load the trained memory model (not the base — the fine-tuned one)."""
-    global _model, _tokenizer
+    global _model, _tokenizer, _backend
 
     current_model = Path(config.models_dir) / "current"
     if not current_model.exists():
@@ -41,33 +42,58 @@ def _load_model(config: DreamcatcherConfig):
         print("  Server will run in database-only mode.")
         return
 
-    model_path = str(current_model.resolve())
+    model_path = current_model.resolve()
     print(f"  Loading trained memory model from {model_path}")
 
+    # ── Detect MLX adapter format (produced by mlx_lm.lora --fine-tune-type full) ──
+    adapter_config = model_path / "adapter_config.json"
+    if adapter_config.exists():
+        try:
+            with open(adapter_config) as f:
+                acfg = json.load(f)
+            base_model = acfg.get("model", config.model.name)
+            print(f"  Detected MLX adapter format (base: {base_model})")
+
+            from mlx_lm import load as mlx_load
+
+            _model, _tokenizer = mlx_load(
+                base_model,
+                adapter_path=str(model_path),
+            )
+            _backend = "mlx"
+            print(f"  Model loaded via MLX, ready for inference")
+            return
+        except Exception as e:
+            print(f"  MLX loading failed: {e}")
+            print("  Trying PyTorch fallback...")
+
+    # ── PyTorch loading (for models saved as full HF checkpoints) ──
     try:
         import torch
         from transformers import AutoModelForCausalLM, AutoTokenizer
 
-        _tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+        _tokenizer = AutoTokenizer.from_pretrained(str(model_path), trust_remote_code=True)
         _model = AutoModelForCausalLM.from_pretrained(
-            model_path,
+            str(model_path),
             torch_dtype=torch.float16,
             trust_remote_code=True,
             device_map="auto",
         )
-        _model.eval()  # Inference mode
+        _model.eval()
 
         if _tokenizer.pad_token is None:
             _tokenizer.pad_token = _tokenizer.eos_token
 
+        _backend = "pytorch"
         param_count = sum(p.numel() for p in _model.parameters())
-        print(f"  Model loaded: {param_count/1e6:.0f}M params, ready for inference")
+        print(f"  Model loaded via PyTorch: {param_count/1e6:.0f}M params, ready for inference")
 
     except Exception as e:
         print(f"  ERROR loading model: {e}")
         print("  Server will run in database-only mode.")
         _model = None
         _tokenizer = None
+        _backend = None
 
 
 def create_app(config: DreamcatcherConfig = None) -> "FastAPI":
@@ -137,6 +163,7 @@ def create_app(config: DreamcatcherConfig = None) -> "FastAPI":
         return {
             "status": "ok",
             "model_loaded": _model is not None,
+            "model_backend": _backend,
             "model_path": str(model_path),
             "model_age_hours": model_age_hours,
             "stats": _db.stats() if _db else {},
@@ -342,6 +369,26 @@ def _generate(query: str, max_tokens: int = 256) -> str:
         {"role": "user", "content": query},
     ]
 
+    if _backend == "mlx":
+        from mlx_lm import generate as mlx_generate
+        from mlx_lm.sample_utils import make_sampler
+
+        if hasattr(_tokenizer, "apply_chat_template"):
+            prompt = _tokenizer.apply_chat_template(
+                messages, tokenize=False, add_generation_prompt=True
+            )
+        else:
+            prompt = f"<|system|>\n{SYSTEM_MSG}\n<|user|>\n{query}\n<|assistant|>\n"
+
+        sampler = make_sampler(temp=0.3, top_p=0.9)
+        return mlx_generate(
+            _model, _tokenizer,
+            prompt=prompt,
+            max_tokens=max_tokens,
+            sampler=sampler,
+        )
+
+    # PyTorch path
     input_text = _tokenizer.apply_chat_template(
         messages, tokenize=False, add_generation_prompt=True
     )
@@ -352,7 +399,7 @@ def _generate(query: str, max_tokens: int = 256) -> str:
         outputs = _model.generate(
             **inputs,
             max_new_tokens=max_tokens,
-            temperature=0.3,      # Low temp for factual retrieval
+            temperature=0.3,
             top_p=0.9,
             repetition_penalty=1.1,
             do_sample=True,
