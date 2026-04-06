@@ -114,9 +114,9 @@ dreamcatcher serve
 ```
 
 Restart Claude Code. Your personal memory is now active in every session. The MCP server provides three tools:
-- **`dreamcatcher_recall`** — Query specific memories on demand
-- **`dreamcatcher_status`** — Check model health and memory stats
-- **`dreamcatcher_save_session`** — Auto-saves conversations for nightly training
+- **`living_memory_recall`** — Query specific memories on demand
+- **`living_memory_status`** — Check model health and memory stats
+- **`living_memory_save_session`** — Auto-saves conversations for nightly training
 
 Personal context is injected into Claude's system prompt at session start. Conversations are automatically saved for the nightly training pipeline. See [`integrations/claude-code/README.md`](integrations/claude-code/README.md) for manual setup and configuration options.
 

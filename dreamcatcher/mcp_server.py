@@ -1,15 +1,15 @@
 """
-Dreamcatcher MCP Server for Claude Code
-========================================
-Exposes the Dreamcatcher personal memory system to Claude Code via the
+Living Memory MCP Server for Claude Code
+=========================================
+Exposes the Living Memory personal memory system to Claude Code via the
 Model Context Protocol (MCP). This is a thin stdio bridge — all memory
-logic runs in the separate Dreamcatcher server process.
+logic runs in the separate Living Memory server process.
 
 Integration points:
   instructions → POST /context  (personal memory injected at session start)
-  tools        → dreamcatcher_recall, dreamcatcher_status, dreamcatcher_save_session
+  tools        → living_memory_recall, living_memory_status, living_memory_save_session
 
-Requires: a running Dreamcatcher server (default http://localhost:8420).
+Requires: a running Living Memory server (default http://localhost:8420).
 Start the server: dreamcatcher serve
 
 Usage:
@@ -27,7 +27,7 @@ import httpx
 logging.basicConfig(
     stream=sys.stderr,
     level=logging.INFO,
-    format="[dreamcatcher-mcp] %(levelname)s: %(message)s",
+    format="[living-memory-mcp] %(levelname)s: %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -76,30 +76,30 @@ def _record_failure(context: str):
 # ── Build MCP instructions (fetches personal context on startup) ────
 
 _INSTRUCTIONS_HEADER = """\
-You have access to Dreamcatcher, a personal memory system that has been
+You have access to Living Memory, a personal memory system that has been
 trained on the user's complete interaction history. The memory model
 encodes knowledge about the user's projects, preferences, relationships,
 and patterns into its weights through nightly re-fine-tuning.
 
 Available tools:
-- dreamcatcher_recall: Query specific memories about the user. Use this
+- living_memory_recall: Query specific memories about the user. Use this
   when you need to recall facts not already in context — for example,
   details about a project mentioned weeks ago, or a preference expressed
   in a different conversation.
-- dreamcatcher_status: Check memory model health and statistics.
-- dreamcatcher_save_session: Save the current conversation for tonight's
+- living_memory_status: Check memory model health and statistics.
+- living_memory_save_session: Save the current conversation for tonight's
   memory consolidation training run.
 
 IMPORTANT — Session saving:
 At the end of every meaningful conversation (one that contains personal
 information, project updates, decisions, preferences, or any facts worth
-remembering about the user), call dreamcatcher_save_session with the full
+remembering about the user), call living_memory_save_session with the full
 conversation transcript. Include both user messages and your responses.
 Skip trivial interactions (single-command requests with no personal content)."""
 
 
 def _build_instructions() -> str:
-    """Fetch personal context from Dreamcatcher and assemble MCP instructions."""
+    """Fetch personal context from Living Memory and assemble MCP instructions."""
     global _available
 
     instructions = _INSTRUCTIONS_HEADER
@@ -111,15 +111,15 @@ def _build_instructions() -> str:
             _available = True
             health = resp.json()
             logger.info(
-                f"Connected to Dreamcatcher at {SERVER_URL} "
+                f"Connected to Living Memory at {SERVER_URL} "
                 f"(model_loaded={health.get('model_loaded', False)})"
             )
         else:
-            logger.warning(f"Dreamcatcher returned {resp.status_code}")
+            logger.warning(f"Living Memory returned {resp.status_code}")
             return instructions
     except Exception as e:
         logger.warning(
-            f"Dreamcatcher server not reachable at {SERVER_URL}: {e}. "
+            f"Living Memory server not reachable at {SERVER_URL}: {e}. "
             f"Start it with: dreamcatcher serve"
         )
         return instructions
@@ -155,23 +155,23 @@ def _create_server():
     from mcp.server.fastmcp import FastMCP
 
     instructions = _build_instructions()
-    mcp = FastMCP("dreamcatcher", instructions=instructions)
+    mcp = FastMCP("living-memory", instructions=instructions)
 
-    # ── Tool: dreamcatcher_recall ───────────────────────────────
+    # ── Tool: living_memory_recall ─────────────────────────────
 
     @mcp.tool()
-    def dreamcatcher_recall(query: str) -> str:
+    def living_memory_recall(query: str) -> str:
         """Query the user's personal memory model for specific information.
         Use this when you need to recall facts about the user that aren't
         in the automatic context — details about projects, preferences,
         relationships, or decisions from past conversations."""
         if not _available:
             return (
-                "Dreamcatcher server is not available. "
+                "Living Memory server is not available. "
                 "Start it with: dreamcatcher serve"
             )
         if _circuit_open():
-            return "Dreamcatcher is temporarily unavailable (circuit breaker open)."
+            return "Living Memory is temporarily unavailable (circuit breaker open)."
 
         try:
             client = _get_client()
@@ -201,16 +201,16 @@ def _create_server():
             _record_failure(f"recall: {e}")
             return f"Memory recall failed: {e}"
 
-    # ── Tool: dreamcatcher_status ───────────────────────────────
+    # ── Tool: living_memory_status ─────────────────────────────
 
     @mcp.tool()
-    def dreamcatcher_status() -> str:
+    def living_memory_status() -> str:
         """Check the health and statistics of the user's personal memory
         model. Shows model status, memory counts, training history, and
         category breakdown."""
         if not _available:
             return (
-                "Dreamcatcher server is not available. "
+                "Living Memory server is not available. "
                 "Start it with: dreamcatcher serve"
             )
 
@@ -240,10 +240,10 @@ def _create_server():
             _record_failure(f"status: {e}")
             return f"Status check failed: {e}"
 
-    # ── Tool: dreamcatcher_save_session ─────────────────────────
+    # ── Tool: living_memory_save_session ───────────────────────
 
     @mcp.tool()
-    def dreamcatcher_save_session(transcript: str) -> str:
+    def living_memory_save_session(transcript: str) -> str:
         """Save the current conversation transcript for tonight's memory
         consolidation. Call this at the end of every meaningful conversation
         that contains personal information, project updates, decisions, or
@@ -253,7 +253,7 @@ def _create_server():
 
         if not _available:
             return (
-                "Dreamcatcher server is not available. "
+                "Living Memory server is not available. "
                 "Transcript was NOT saved. Start the server with: dreamcatcher serve"
             )
 
@@ -290,7 +290,7 @@ def _create_server():
 # ── Entry point ─────────────────────────────────────────────────────
 
 def main():
-    """Run the Dreamcatcher MCP server over stdio."""
+    """Run the Living Memory MCP server over stdio."""
     try:
         mcp = _create_server()
         mcp.run(transport="stdio")

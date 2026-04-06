@@ -1,4 +1,4 @@
-# Dreamcatcher Integration for Claude Code
+# Living Memory Integration for Claude Code
 
 Personal memory for Claude Code via the Model Context Protocol (MCP). Your memory model's knowledge is injected into every session, conversations are automatically saved for nightly training, and you can query memories on demand.
 
@@ -13,28 +13,28 @@ That's it. Restart Claude Code and your personal memory is active.
 
 ## What It Does
 
-| Event | Dreamcatcher Action |
+| Event | Living Memory Action |
 |-------|-------------------|
 | Session starts | Fetches personal context from `/context`, injects into MCP instructions |
-| Agent calls `dreamcatcher_recall` | Queries memory model via `/recall` |
-| Agent calls `dreamcatcher_save_session` | Saves transcript via `/ingest` for tonight's training |
+| Agent calls `living_memory_recall` | Queries memory model via `/recall` |
+| Agent calls `living_memory_save_session` | Saves transcript via `/ingest` for tonight's training |
 | Tonight at 3 AM | Nightly pipeline extracts, trains, deploys updated model |
 
 ## Tools
 
 | Tool | Description |
 |------|-------------|
-| `dreamcatcher_recall` | Query specific memories (projects, preferences, relationships) |
-| `dreamcatcher_status` | Check model health, memory counts, training history |
-| `dreamcatcher_save_session` | Save the conversation transcript for nightly consolidation |
+| `living_memory_recall` | Query specific memories (projects, preferences, relationships) |
+| `living_memory_status` | Check model health, memory counts, training history |
+| `living_memory_save_session` | Save the conversation transcript for nightly consolidation |
 
 ## Architecture
 
 ```
-┌──────────────┐    stdio/JSON-RPC    ┌─────────────────┐    HTTP    ┌─────────────────────┐
-│  Claude Code  │ ◄──────────────────► │  mcp_server.py  │ ◄────────► │  Dreamcatcher Server │
-│  (MCP client) │                      │  (MCP bridge)   │           │  (FastAPI :8420)     │
-└──────────────┘                      └─────────────────┘           └──────────┬──────────┘
+┌──────────────┐    stdio/JSON-RPC    ┌─────────────────┐    HTTP    ┌───────────────────────┐
+│  Claude Code  │ ◄──────────────────► │  mcp_server.py  │ ◄────────► │  Living Memory Server │
+│  (MCP client) │                      │  (MCP bridge)   │           │  (FastAPI :8420)      │
+└──────────────┘                      └─────────────────┘           └──────────┬────────────┘
                                                                                │
                                                                     ┌──────────▼──────────┐
                                                                     │  Memory Model (local)│
@@ -42,7 +42,7 @@ That's it. Restart Claude Code and your personal memory is active.
                                                                     └─────────────────────┘
 ```
 
-The MCP server is a thin bridge — all memory logic (extraction, training, inference, compression) runs in the Dreamcatcher server process.
+The MCP server is a thin bridge — all memory logic (extraction, training, inference, compression) runs in the Living Memory server process.
 
 ## Manual Setup
 
@@ -61,7 +61,7 @@ Add to `~/.claude/settings.json` (global) or `.claude/settings.json` (project):
 ```json
 {
   "mcpServers": {
-    "dreamcatcher": {
+    "living-memory": {
       "type": "stdio",
       "command": "dreamcatcher",
       "args": ["mcp"],
@@ -99,7 +99,7 @@ Options:
 
 ## How Auto-Capture Works
 
-Unlike the Hermes and OpenClaw integrations (which hook into agent lifecycle events), MCP does not expose per-turn or session-end callbacks. Instead, the MCP server's `instructions` field tells Claude to call `dreamcatcher_save_session` at the end of every meaningful conversation. This is reliable in practice because Claude follows MCP tool-use instructions consistently.
+Unlike the Hermes and OpenClaw integrations (which hook into agent lifecycle events), MCP does not expose per-turn or session-end callbacks. Instead, the MCP server's `instructions` field tells Claude to call `living_memory_save_session` at the end of every meaningful conversation. This is reliable in practice because Claude follows MCP tool-use instructions consistently.
 
 ## Troubleshooting
 
