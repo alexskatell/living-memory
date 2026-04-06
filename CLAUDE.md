@@ -2,7 +2,16 @@
 
 ## Session Saving (Required Behavior)
 
-At the end of every meaningful conversation — one that contains personal information, project updates, decisions, preferences, or any facts worth remembering — you MUST call `living_memory_save_session` with the full conversation transcript (both user messages and your responses).
+At the end of every meaningful conversation — one that contains personal information, project updates, decisions, preferences, or any facts worth remembering — you MUST call `living_memory_save_session` with a DETAILED transcript (both user messages and your responses).
+
+**Write 3,000-6,000 characters of rich detail.** This is critical. The extraction LLM needs specifics to produce useful multi-angle training pairs. Include:
+- Specific names, projects, tools, and technologies discussed
+- Decisions made and the reasoning behind them
+- Problems encountered and how they were solved
+- User preferences and opinions expressed
+- Direct quotes where they capture the user's intent or personality
+
+**Do NOT write a brief summary.** A transcript like "We discussed setting up the project and fixed some issues" is almost worthless for training. Instead, write out *what* project, *what* setup steps, *what* broke, *what* the user decided, and *why*. The more specific the transcript, the better the memories.
 
 Skip saving only for trivial single-command interactions with no personal content.
 

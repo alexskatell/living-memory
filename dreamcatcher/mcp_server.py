@@ -93,9 +93,22 @@ Available tools:
 IMPORTANT — Session saving:
 At the end of every meaningful conversation (one that contains personal
 information, project updates, decisions, preferences, or any facts worth
-remembering about the user), call living_memory_save_session with the full
-conversation transcript. Include both user messages and your responses.
-Skip trivial interactions (single-command requests with no personal content)."""
+remembering about the user), call living_memory_save_session with a DETAILED
+transcript. This is critical — write a comprehensive account (3,000-6,000
+characters) that includes:
+- Specific names, projects, tools, and technologies discussed
+- Decisions made and rationale behind them
+- Problems encountered and how they were solved
+- User preferences and opinions expressed
+- Direct quotes where they capture intent or personality
+
+Do NOT summarize. The extraction LLM needs rich, specific detail to produce
+useful multi-angle training pairs. A brief summary like "discussed project
+setup" is almost worthless — instead write out what project, what setup
+steps, what went wrong, what the user decided.
+
+Include both user messages and your responses. Skip only trivial
+single-command interactions with no personal content."""
 
 
 def _build_instructions() -> str:
@@ -247,7 +260,13 @@ def _create_server():
         """Save the current conversation transcript for tonight's memory
         consolidation. Call this at the end of every meaningful conversation
         that contains personal information, project updates, decisions, or
-        preferences. Include both user messages and your responses."""
+        preferences. Include both user messages and your responses.
+
+        IMPORTANT: Write a DETAILED transcript (3,000-6,000 characters), not
+        a brief summary. Include specific names, projects, technologies,
+        decisions, problems solved, and user preferences. The extraction LLM
+        needs rich detail to produce useful training pairs. A vague summary
+        produces vague memories."""
         if not transcript or not transcript.strip():
             return "Nothing to save — transcript is empty."
 
