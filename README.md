@@ -101,9 +101,11 @@ memory = LivingMemory()  # Connects to localhost:8420
 context = memory.get_context("What should I focus on today?")
 system_prompt = f"You are a helpful assistant.\n\n{context}"
 
-# SESSION END: save transcript for tonight's training
+# SESSION END: save the FULL transcript for tonight's training
 memory.save_session(transcript, agent_name="my-agent")
 ```
+
+> **Important — save complete transcripts, not summaries.** The nightly extraction LLM needs the full, unfiltered conversation to produce high-quality memories. Include every user message and every assistant response verbatim. Brief summaries strip out the specific details (names, decisions, reasoning, preferences) that make memories useful. More data in = better memories out.
 
 ### Claude Code (MCP Integration)
 
@@ -140,9 +142,10 @@ messages = [
     {"role": "user", "content": user_message},
 ]
 
-# When the session ends:
+# When the session ends — save the FULL unfiltered transcript:
 full_transcript = "\n".join(format_messages(messages))
 memory.save_session(full_transcript, agent_name="openclaw")
+# Don't summarize or truncate — the extraction LLM needs every detail.
 ```
 
 ### Hermes Agent Integration
@@ -156,7 +159,7 @@ class HermesAgent:
     def on_session_start(self, user_query):
         # Get personal context for this session
         self.personal_context = memory.get_context(user_query)
-        self.transcript = []
+        self.transcript = []  # Accumulate ALL messages verbatim
 
     def build_system_prompt(self):
         base = "You are Hermes, a research and coordination agent."
@@ -164,8 +167,12 @@ class HermesAgent:
             return f"{base}\n\n{self.personal_context}"
         return base
 
+    def on_message(self, role, content):
+        # Capture every message — don't filter or summarize
+        self.transcript.append(f"{role}: {content}")
+
     def on_session_end(self):
-        # Save everything for tonight's training
+        # Save the FULL unfiltered transcript for tonight's training
         memory.save_session(
             "\n".join(self.transcript),
             agent_name="hermes"
